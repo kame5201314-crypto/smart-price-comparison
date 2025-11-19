@@ -11,12 +11,17 @@ export async function callOpenAI(
   systemMessage: string = '你是一位專業的電商行銷文案撰寫專家。',
   model: string = 'gpt-4'
 ): Promise<string> {
+  console.log('🔑 [OpenAI] API Key 狀態:', OPENAI_API_KEY ? '已設定 ✓' : '未設定 ✗');
+
   if (!OPENAI_API_KEY) {
     console.warn('⚠️ 未設定 OPENAI_API_KEY，使用模擬資料');
     throw new Error('未設定 API Key');
   }
 
   try {
+    console.log(`💰 [OpenAI] 使用模型: ${model}`);
+    console.log(`📝 [OpenAI] Prompt 長度: ${prompt.length} 字元`);
+
     const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
@@ -34,15 +39,21 @@ export async function callOpenAI(
       })
     });
 
+    console.log(`📊 [OpenAI] API 回應狀態: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error('❌ [OpenAI] API 錯誤詳情:', error);
       throw new Error(`OpenAI API 錯誤: ${error.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('✅ [OpenAI] API 呼叫成功');
+    console.log('📈 [OpenAI] Token 使用:', data.usage);
+
     return data.choices[0]?.message?.content || '';
   } catch (error) {
-    console.error('OpenAI API 呼叫失敗:', error);
+    console.error('❌ [OpenAI] API 呼叫失敗:', error);
     throw error;
   }
 }
@@ -51,31 +62,67 @@ export async function callOpenAI(
  * 抓取網頁內容（使用第三方服務或自建後端）
  */
 export async function fetchWebContent(url: string): Promise<string> {
-  // 方案一：使用免費的 API（例如 allorigins.win）
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
+  // 嘗試多個 CORS 代理服務
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
+  ];
 
-    if (!response.ok) {
-      throw new Error('無法抓取網頁內容');
+  for (const proxyUrl of proxies) {
+    try {
+      console.log(`🔄 [抓取] 嘗試代理: ${proxyUrl.split('?')[0]}`);
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/html,application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`⚠️ [抓取] 代理失敗 (${response.status}):`, proxyUrl.split('?')[0]);
+        continue;
+      }
+
+      // 處理不同代理的回應格式
+      let html: string;
+      const contentType = response.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        html = data.contents || data.content || data;
+      } else {
+        html = await response.text();
+      }
+
+      if (!html || html.length < 100) {
+        console.warn(`⚠️ [抓取] 內容太短，嘗試下一個代理`);
+        continue;
+      }
+
+      console.log(`✅ [抓取] 成功使用代理: ${proxyUrl.split('?')[0]}`);
+
+      // 簡單的 HTML 清理，提取文字內容
+      const text = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const result = text.substring(0, 3000); // 限制長度
+      console.log(`📝 [抓取] 內容長度: ${result.length} 字元`);
+      return result;
+
+    } catch (proxyError) {
+      console.warn(`⚠️ [抓取] 代理錯誤:`, proxyError);
+      continue; // 嘗試下一個代理
     }
-
-    const data = await response.json();
-    const html = data.contents;
-
-    // 簡單的 HTML 清理，提取文字內容
-    const text = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    return text.substring(0, 3000); // 限制長度
-  } catch (error) {
-    console.error('網頁抓取失敗:', error);
-    throw error;
   }
+
+  // 所有代理都失敗
+  console.error('❌ [抓取] 所有 CORS 代理都失敗');
+  throw new Error('無法抓取網頁內容：所有 CORS 代理服務都無法訪問。請檢查網路連線或稍後再試。');
 }
 
 /**
@@ -83,10 +130,14 @@ export async function fetchWebContent(url: string): Promise<string> {
  */
 export async function analyzeProductFromUrl(url: string): Promise<any> {
   try {
+    console.log('📡 [OpenAI] 開始抓取網頁:', url);
+
     // 1. 抓取網頁內容
     const webContent = await fetchWebContent(url);
+    console.log('✅ [OpenAI] 網頁內容抓取完成，長度:', webContent.length);
 
     // 2. 使用 GPT 分析
+    console.log('🤖 [OpenAI] 呼叫 GPT 分析商品資訊...');
     const prompt = `
 請分析以下網頁內容，提取商品資訊，並以 JSON 格式回傳：
 
@@ -110,10 +161,11 @@ ${webContent}
 只需回傳 JSON，不要其他說明文字。
     `;
 
+    const model = import.meta.env.VITE_AI_MODEL || 'gpt-3.5-turbo';
     const result = await callOpenAI(
       prompt,
       '你是一位專業的商品資訊分析專家，擅長從網頁內容中提取結構化的商品資訊。',
-      'gpt-4'
+      model
     );
 
     // 解析 JSON
@@ -233,8 +285,9 @@ export async function generateProductCopy(
   };
 
   try {
+    const model = import.meta.env.VITE_AI_MODEL || 'gpt-3.5-turbo';
     const prompt = prompts[copyType] || prompts.ecommerce;
-    const result = await callOpenAI(prompt, '你是專業的電商文案撰寫專家。');
+    const result = await callOpenAI(prompt, '你是專業的電商文案撰寫專家。', model);
 
     // 解析 JSON
     const jsonMatch = result.match(/\{[\s\S]*\}/);
@@ -289,7 +342,8 @@ export async function analyzeAudience(productName: string, productDescription: s
   `;
 
   try {
-    const result = await callOpenAI(prompt, '你是專業的市場分析專家。');
+    const model = import.meta.env.VITE_AI_MODEL || 'gpt-3.5-turbo';
+    const result = await callOpenAI(prompt, '你是專業的市場分析專家。', model);
 
     // 解析 JSON
     const jsonMatch = result.match(/\{[\s\S]*\}/);

@@ -20,31 +20,38 @@ export default function CopywritingGenerator() {
 
   const [generatedCopies, setGeneratedCopies] = useState<GeneratedCopy[]>([]);
   const [loading, setLoading] = useState(false);
-  const [analyzingUrl, setAnalyzingUrl] = useState(false);
   const [editingCopy, setEditingCopy] = useState<string | null>(null);
 
-  // 分析網址
-  const handleAnalyzeUrl = async () => {
-    if (!productInfo.url) return;
-
-    setAnalyzingUrl(true);
-    try {
-      const analyzedInfo = await CopywritingService.analyzeProductUrl(productInfo.url);
-      setProductInfo(prev => ({ ...prev, ...analyzedInfo }));
-    } catch (error) {
-      alert('網址分析失敗');
-    } finally {
-      setAnalyzingUrl(false);
-    }
-  };
-
-  // 生成文案
+  // 生成文案（自動處理網址分析）
   const handleGenerate = async () => {
-    if (!productInfo.name) {
-      alert('請輸入商品名稱');
+    // 如果有網址但沒有商品名稱，先分析網址
+    if (productInfo.url && !productInfo.name) {
+      setLoading(true);
+      try {
+        const analyzedInfo = await CopywritingService.analyzeProductUrl(productInfo.url);
+        setProductInfo(prev => ({ ...prev, ...analyzedInfo }));
+
+        // 分析完成後繼續生成文案
+        const copies = await CopywritingService.generateMultipleCopies(
+          { ...productInfo, ...analyzedInfo },
+          selectedTypes
+        );
+        setGeneratedCopies(copies);
+      } catch (error) {
+        alert('網址分析或文案生成失敗，請檢查網址是否正確');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
+    // 如果沒有商品名稱，提示錯誤
+    if (!productInfo.name) {
+      alert('請輸入商品名稱或商品網址');
+      return;
+    }
+
+    // 直接生成文案
     setLoading(true);
     try {
       const copies = await CopywritingService.generateMultipleCopies(
@@ -108,51 +115,32 @@ export default function CopywritingGenerator() {
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">商品資訊</h3>
 
+        {/* 商品網址 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            商品網址（貼上網址後，點選下方「開始生成文案」即可自動分析）
+          </label>
+          <input
+            type="url"
+            value={productInfo.url}
+            onChange={(e) => setProductInfo({ ...productInfo, url: e.target.value })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="https://www.mefu.com.tw/products/ai-instant-selfie-stick-cy147"
+          />
+        </div>
+
         {/* 商品名稱 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            商品名稱 *
+            商品名稱（選填，請手動輸入或留空）
           </label>
           <input
             type="text"
             value={productInfo.name}
             onChange={(e) => setProductInfo({ ...productInfo, name: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="例：智能藍牙自拍棒"
+            placeholder="請手動輸入"
           />
-        </div>
-
-        {/* 商品網址 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            商品網址（選填，AI 會自動分析）
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={productInfo.url}
-              onChange={(e) => setProductInfo({ ...productInfo, url: e.target.value })}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="https://..."
-            />
-            <button
-              onClick={handleAnalyzeUrl}
-              disabled={analyzingUrl || !productInfo.url}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {analyzingUrl ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  分析中
-                </>
-              ) : (
-                <>
-                  <Link size={18} />
-                  AI 分析
-                </>
-              )}
-            </button>
-          </div>
         </div>
 
         {/* 商品描述 */}
@@ -197,13 +185,13 @@ export default function CopywritingGenerator() {
       <div className="flex justify-center">
         <button
           onClick={handleGenerate}
-          disabled={loading || !productInfo.name || selectedTypes.length === 0}
+          disabled={loading || (!productInfo.name && !productInfo.url) || selectedTypes.length === 0}
           className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center gap-3 text-lg font-medium shadow-lg"
         >
           {loading ? (
             <>
               <Loader2 size={24} className="animate-spin" />
-              AI 生成中...
+              AI 分析與生成中...
             </>
           ) : (
             <>

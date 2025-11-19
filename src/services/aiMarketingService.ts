@@ -37,6 +37,14 @@ const USE_OPENROUTER = !!OPENROUTER_API_KEY;
 const USE_OPENAI = !!OPENAI_API_KEY;
 const USE_REAL_AI = USE_OPENROUTER || USE_OPENAI;
 
+// 診斷日誌
+console.log('🔧 環境變數檢查:');
+console.log('  OPENROUTER_API_KEY:', OPENROUTER_API_KEY ? '已設定 ✓' : '未設定 ✗');
+console.log('  OPENAI_API_KEY:', OPENAI_API_KEY ? `已設定 ✓ (${OPENAI_API_KEY.substring(0, 20)}...)` : '未設定 ✗');
+console.log('  USE_OPENROUTER:', USE_OPENROUTER);
+console.log('  USE_OPENAI:', USE_OPENAI);
+console.log('  USE_REAL_AI:', USE_REAL_AI);
+
 // 選擇使用的服務
 const aiService = USE_OPENROUTER ? {
   analyzeProductFromUrl: analyzeWithOpenRouter,

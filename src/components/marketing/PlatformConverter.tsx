@@ -6,6 +6,7 @@ import { PlatformConversionService, CopywritingService } from '../../services/ai
 export default function PlatformConverter() {
   const [productInfo, setProductInfo] = useState<ProductInfo>({
     name: '',
+    url: '',
     description: '',
     price: 0
   });
@@ -16,8 +17,32 @@ export default function PlatformConverter() {
 
   // 轉換為平台格式
   const handleConvert = async () => {
+    // 如果有網址但沒有商品名稱，先分析網址
+    if (productInfo.url && !productInfo.name) {
+      setLoading(true);
+      try {
+        const analyzedInfo = await CopywritingService.analyzeProductUrl(productInfo.url);
+        const mergedInfo = { ...productInfo, ...analyzedInfo };
+        setProductInfo(mergedInfo);
+
+        // 分析完成後繼續轉換
+        const copy = await CopywritingService.generateCopy(mergedInfo, CopywritingType.ECOMMERCE);
+        const converted = await PlatformConversionService.convertToPlatform(
+          mergedInfo,
+          copy,
+          selectedPlatform
+        );
+        setConvertedContent(converted);
+      } catch (error) {
+        alert('網址分析或平台轉換失敗，請檢查網址是否正確或手動輸入商品資訊');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!productInfo.name) {
-      alert('請輸入商品名稱');
+      alert('請輸入商品名稱或商品網址');
       return;
     }
 
@@ -83,23 +108,37 @@ export default function PlatformConverter() {
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">商品資訊</h3>
 
+        {/* 商品網址 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            商品網址（貼上網址後，點選下方「開始轉換」即可自動分析）
+          </label>
+          <input
+            type="url"
+            value={productInfo.url}
+            onChange={(e) => setProductInfo({ ...productInfo, url: e.target.value })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="https://www.mefu.com.tw/products/ai-instant-selfie-stick-cy147"
+          />
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              商品名稱 *
+              商品名稱（選填，請手動輸入或留空）
             </label>
             <input
               type="text"
               value={productInfo.name}
               onChange={(e) => setProductInfo({ ...productInfo, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="例：智能藍牙自拍棒"
+              placeholder="請手動輸入"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              價格
+              價格（選填）
             </label>
             <input
               type="number"
@@ -113,7 +152,7 @@ export default function PlatformConverter() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            商品描述
+            商品描述（選填）
           </label>
           <textarea
             value={productInfo.description}
@@ -160,13 +199,13 @@ export default function PlatformConverter() {
       <div className="flex justify-center">
         <button
           onClick={handleConvert}
-          disabled={loading || !productInfo.name}
+          disabled={loading || (!productInfo.name && !productInfo.url)}
           className="px-8 py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center gap-3 text-lg font-medium shadow-lg"
         >
           {loading ? (
             <>
               <Loader2 size={24} className="animate-spin" />
-              轉換中...
+              {productInfo.url && !productInfo.name ? 'AI 分析與轉換中...' : '轉換中...'}
             </>
           ) : (
             <>
