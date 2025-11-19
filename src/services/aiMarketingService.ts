@@ -15,15 +15,40 @@ import {
   SceneScript
 } from '../types/marketing';
 
+// 優先使用 OpenRouter（支援多種模型），其次使用 OpenAI
 import {
-  analyzeProductFromUrl,
-  generateProductCopy,
-  analyzeAudience as analyzeAudienceWithAI
+  analyzeProductFromUrl as analyzeWithOpenRouter,
+  generateProductCopy as generateWithOpenRouter,
+  analyzeAudience as analyzeAudienceWithOpenRouter
+} from './openrouterService';
+
+import {
+  analyzeProductFromUrl as analyzeWithOpenAI,
+  generateProductCopy as generateWithOpenAI,
+  analyzeAudience as analyzeAudienceWithOpenAI
 } from './openaiService';
 
-// 檢查是否有 API Key
+// 檢查 API Key
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || '';
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
-const USE_REAL_AI = !!OPENAI_API_KEY;
+
+// 優先使用 OpenRouter
+const USE_OPENROUTER = !!OPENROUTER_API_KEY;
+const USE_OPENAI = !!OPENAI_API_KEY;
+const USE_REAL_AI = USE_OPENROUTER || USE_OPENAI;
+
+// 選擇使用的服務
+const aiService = USE_OPENROUTER ? {
+  analyzeProductFromUrl: analyzeWithOpenRouter,
+  generateProductCopy: generateWithOpenRouter,
+  analyzeAudience: analyzeAudienceWithOpenRouter,
+  name: 'OpenRouter'
+} : {
+  analyzeProductFromUrl: analyzeWithOpenAI,
+  generateProductCopy: generateWithOpenAI,
+  analyzeAudience: analyzeAudienceWithOpenAI,
+  name: 'OpenAI'
+};
 
 /**
  * ① AI 商品文案自動生成
@@ -37,8 +62,8 @@ export class CopywritingService {
     try {
       if (USE_REAL_AI) {
         // 使用真實 AI 分析
-        console.log('🤖 使用 OpenAI 分析網址:', url);
-        const result = await analyzeProductFromUrl(url);
+        console.log(`🤖 使用 ${aiService.name} 分析網址:`, url);
+        const result = await aiService.analyzeProductFromUrl(url);
         console.log('✅ AI 分析完成:', result);
         return result;
       } else {
@@ -81,8 +106,8 @@ export class CopywritingService {
 
       if (USE_REAL_AI) {
         // 使用真實 AI 生成
-        console.log(`🤖 使用 OpenAI 生成 ${type} 文案:`, product.name);
-        const result = await generateProductCopy(
+        console.log(`🤖 使用 ${aiService.name} 生成 ${type} 文案:`, product.name);
+        const result = await aiService.generateProductCopy(
           product.name,
           product.description || '',
           type
@@ -819,8 +844,8 @@ export class AudienceAnalysisService {
     try {
       if (USE_REAL_AI) {
         // 使用真實 AI 分析
-        console.log('🤖 使用 OpenAI 分析受眾:', product.name);
-        const result = await analyzeAudienceWithAI(
+        console.log(`🤖 使用 ${aiService.name} 分析受眾:`, product.name);
+        const result = await aiService.analyzeAudience(
           product.name,
           product.description || ''
         );
