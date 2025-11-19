@@ -1,0 +1,308 @@
+import { useState } from 'react';
+import { Copy, Download, Save, Wand2, Link, Loader2 } from 'lucide-react';
+import {
+  ProductInfo,
+  CopywritingType,
+  GeneratedCopy
+} from '../../types/marketing';
+import { CopywritingService } from '../../services/aiMarketingService';
+
+export default function CopywritingGenerator() {
+  const [productInfo, setProductInfo] = useState<ProductInfo>({
+    name: '',
+    url: '',
+    description: ''
+  });
+
+  const [selectedTypes, setSelectedTypes] = useState<CopywritingType[]>([
+    CopywritingType.SEO
+  ]);
+
+  const [generatedCopies, setGeneratedCopies] = useState<GeneratedCopy[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [analyzingUrl, setAnalyzingUrl] = useState(false);
+  const [editingCopy, setEditingCopy] = useState<string | null>(null);
+
+  // 分析網址
+  const handleAnalyzeUrl = async () => {
+    if (!productInfo.url) return;
+
+    setAnalyzingUrl(true);
+    try {
+      const analyzedInfo = await CopywritingService.analyzeProductUrl(productInfo.url);
+      setProductInfo(prev => ({ ...prev, ...analyzedInfo }));
+    } catch (error) {
+      alert('網址分析失敗');
+    } finally {
+      setAnalyzingUrl(false);
+    }
+  };
+
+  // 生成文案
+  const handleGenerate = async () => {
+    if (!productInfo.name) {
+      alert('請輸入商品名稱');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const copies = await CopywritingService.generateMultipleCopies(
+        productInfo,
+        selectedTypes
+      );
+      setGeneratedCopies(copies);
+    } catch (error) {
+      alert('文案生成失敗');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 複製文案
+  const handleCopy = (copy: GeneratedCopy) => {
+    const text = `${copy.title}\n\n${copy.content}`;
+    navigator.clipboard.writeText(text);
+    alert('已複製到剪貼簿！');
+  };
+
+  // 匯出 CSV
+  const handleExportCsv = () => {
+    const csv = CopywritingService.exportToCsv(generatedCopies);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `product_copies_${Date.now()}.csv`;
+    link.click();
+  };
+
+  // 切換文案類型選擇
+  const toggleType = (type: CopywritingType) => {
+    if (selectedTypes.includes(type)) {
+      setSelectedTypes(selectedTypes.filter(t => t !== type));
+    } else {
+      setSelectedTypes([...selectedTypes, type]);
+    }
+  };
+
+  // 文案類型標籤
+  const typeLabels: Record<CopywritingType, string> = {
+    [CopywritingType.SEO]: 'SEO 版',
+    [CopywritingType.ECOMMERCE]: '電商銷售版',
+    [CopywritingType.EMOTIONAL]: '感性故事版',
+    [CopywritingType.SHORT_TITLE]: '短標題',
+    [CopywritingType.SHOPEE_SPEC]: '蝦皮規格＋賣點'
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 標題 */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800">AI 商品文案自動生成</h2>
+        <p className="text-gray-600 mt-1">
+          輸入商品資訊或網址，AI 自動分析並生成多種風格文案
+        </p>
+      </div>
+
+      {/* 商品資訊輸入 */}
+      <div className="bg-white rounded-lg shadow p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800">商品資訊</h3>
+
+        {/* 商品名稱 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            商品名稱 *
+          </label>
+          <input
+            type="text"
+            value={productInfo.name}
+            onChange={(e) => setProductInfo({ ...productInfo, name: e.target.value })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="例：智能藍牙自拍棒"
+          />
+        </div>
+
+        {/* 商品網址 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            商品網址（選填，AI 會自動分析）
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={productInfo.url}
+              onChange={(e) => setProductInfo({ ...productInfo, url: e.target.value })}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="https://..."
+            />
+            <button
+              onClick={handleAnalyzeUrl}
+              disabled={analyzingUrl || !productInfo.url}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {analyzingUrl ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  分析中
+                </>
+              ) : (
+                <>
+                  <Link size={18} />
+                  AI 分析
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 商品描述 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            商品描述（選填）
+          </label>
+          <textarea
+            value={productInfo.description}
+            onChange={(e) => setProductInfo({ ...productInfo, description: e.target.value })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={3}
+            placeholder="簡單描述商品特色..."
+          />
+        </div>
+      </div>
+
+      {/* 選擇文案類型 */}
+      <div className="bg-white rounded-lg shadow p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800">選擇產出文案類型</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Object.values(CopywritingType).map(type => (
+            <button
+              key={type}
+              onClick={() => toggleType(type)}
+              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                selectedTypes.includes(type)
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium'
+                  : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+              }`}
+            >
+              {typeLabels[type]}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-gray-500">
+          已選擇 {selectedTypes.length} 種文案類型
+        </p>
+      </div>
+
+      {/* 生成按鈕 */}
+      <div className="flex justify-center">
+        <button
+          onClick={handleGenerate}
+          disabled={loading || !productInfo.name || selectedTypes.length === 0}
+          className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center gap-3 text-lg font-medium shadow-lg"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={24} className="animate-spin" />
+              AI 生成中...
+            </>
+          ) : (
+            <>
+              <Wand2 size={24} />
+              開始生成文案
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* 生成結果 */}
+      {generatedCopies.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-gray-800">
+              生成結果（{generatedCopies.length} 篇）
+            </h3>
+            <button
+              onClick={handleExportCsv}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            >
+              <Download size={18} />
+              匯出 CSV
+            </button>
+          </div>
+
+          {generatedCopies.map(copy => (
+            <div
+              key={copy.id}
+              className="bg-white rounded-lg shadow p-6 space-y-4 border-l-4 border-blue-500"
+            >
+              {/* 文案類型標籤 */}
+              <div className="flex items-center justify-between">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  {typeLabels[copy.type]}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCopy(copy)}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1 text-sm"
+                  >
+                    <Copy size={16} />
+                    複製
+                  </button>
+                  <button
+                    onClick={() => setEditingCopy(editingCopy === copy.id ? null : copy.id)}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1 text-sm"
+                  >
+                    編輯
+                  </button>
+                  <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1 text-sm">
+                    <Save size={16} />
+                    存為模板
+                  </button>
+                </div>
+              </div>
+
+              {/* 標題 */}
+              {editingCopy === copy.id ? (
+                <input
+                  type="text"
+                  defaultValue={copy.title}
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-semibold text-lg"
+                />
+              ) : (
+                <h4 className="font-semibold text-lg text-gray-800">{copy.title}</h4>
+              )}
+
+              {/* 內容 */}
+              {editingCopy === copy.id ? (
+                <textarea
+                  defaultValue={copy.content}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  rows={10}
+                />
+              ) : (
+                <div className="text-gray-700 whitespace-pre-wrap">{copy.content}</div>
+              )}
+
+              {/* 關鍵字 */}
+              {copy.keywords && copy.keywords.length > 0 && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-gray-600 mb-2">關鍵字：</p>
+                  <div className="flex flex-wrap gap-2">
+                    {copy.keywords.map((keyword, i) => (
+                      <span
+                        key={i}
+                        className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
