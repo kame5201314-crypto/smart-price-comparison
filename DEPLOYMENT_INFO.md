@@ -14,28 +14,25 @@
 
 ## 🌐 線上網站
 
-**生產環境**: https://ecommerce-marketing-77s41311b-kaweis-projects.vercel.app
+**生產環境**: https://ecommerce-marketing-2zuwzmka1-kaweis-projects.vercel.app
 
 ### 部署平台
 - **平台**: Vercel
 - **專案名稱**: ecommerce-marketing-ai
-- **狀態**: ✅ 已部署
+- **狀態**: ✅ 已部署並正常運行
 
-### 部署指令
-```bash
-# 重新部署
-vercel --prod
-
-# 查看部署日誌
-vercel inspect ecommerce-marketing-77s41311b-kaweis-projects.vercel.app --logs
-
-# 重新部署指定版本
-vercel redeploy ecommerce-marketing-77s41311b-kaweis-projects.vercel.app
-```
+### 部署歷史
+- ✅ 初始部署 (v1.0.0)
+- ✅ 修復空白頁面問題 (2025-11-20)
+- ✅ 更新標題與 SEO
 
 ---
 
 ## 🔧 環境變數設置
+
+### ⚠️ 重要：配置 Supabase
+
+網站目前可以訪問，但需要配置環境變數才能使用搜尋功能。
 
 ### Vercel Dashboard 設置
 1. 登入 [Vercel Dashboard](https://vercel.com/dashboard)
@@ -44,11 +41,11 @@ vercel redeploy ecommerce-marketing-77s41311b-kaweis-projects.vercel.app
 4. 添加以下變數：
 
 ```env
-# Supabase (必需)
+# Supabase (必需 - 數據庫功能)
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_key
 
-# AI Services (圖片搜尋功能)
+# AI Services (可選 - 圖片搜尋功能)
 VITE_OPENROUTER_API_KEY=your_openrouter_key
 ```
 
@@ -75,59 +72,51 @@ git commit -m "描述更改內容"
 git push origin master
 
 # 6. Vercel 自動部署
-# (或手動執行 vercel --prod)
 ```
 
-### 自動部署
-- 每次推送到 `master` 分支，Vercel 會自動部署
-- 部署時間：約 1-2 分鐘
-- 可在 Vercel Dashboard 查看部署狀態
+### 手動部署
+```bash
+# 立即部署到生產環境
+vercel --prod
+
+# 查看部署日誌
+vercel logs <deployment-url>
+```
 
 ---
 
-## 📊 網站狀態監控
+## ✅ 問題已修復
 
-### Vercel Dashboard
-- **網址**: https://vercel.com/kaweis-projects/ecommerce-marketing-ai
-- **功能**:
-  - 查看部署歷史
-  - 監控流量與性能
-  - 查看錯誤日誌
-  - 設置環境變數
-  - 配置自訂網域
+### 修復內容
+- ✅ 移除不存在的 `envCheck` 導入
+- ✅ 更新頁面標題為中文
+- ✅ 添加 SEO meta 描述
+- ✅ 修復空白頁面問題
 
-### 部署歷史
-```bash
-# 查看部署列表
-vercel list
-
-# 查看特定部署
-vercel inspect [deployment-url]
-```
+### 當前狀態
+- ✅ 網站可正常訪問
+- ✅ UI 正常顯示
+- ⚠️ 需要配置環境變數才能使用搜尋功能
 
 ---
 
 ## 🔗 快速連結
 
-- 🌐 **線上網站**: https://ecommerce-marketing-77s41311b-kaweis-projects.vercel.app
+- 🌐 **線上網站**: https://ecommerce-marketing-2zuwzmka1-kaweis-projects.vercel.app
 - 📦 **GitHub**: https://github.com/kame5201314-crypto/smart-price-comparison
 - ⚙️ **Vercel Dashboard**: https://vercel.com/kaweis-projects/ecommerce-marketing-ai
 
 ---
 
-## 📚 相關文檔
+## 📚 後續步驟
 
-- [README](./README.md) - 專案簡介
-- [快速啟動](./QUICK_START_COMPARISON.md) - 本地開發指南
-- [使用說明](./HOW_TO_USE.md) - 功能使用教學
-- [完整文檔](./PRICE_COMPARISON_README.md) - 詳細技術文檔
+1. ✅ 訪問網站確認正常運行
+2. ⏳ 設置 Supabase 環境變數
+3. ⏳ 執行數據庫 Schema
+4. ⏳ 配置 AI API（圖片搜尋）
+5. ⏳ 測試所有搜尋功能
 
 ---
 
-## 🎉 成功部署！
-
-您的智能商品比價系統已成功部署到：
-- ✅ GitHub 倉庫 (代碼託管)
-- ✅ Vercel 生產環境 (網站託管)
-
-**最後更新**: 2025-11-20
+**最後更新**: 2025-11-20  
+**狀態**: ✅ 網站運行正常，等待環境配置
